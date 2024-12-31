@@ -50,6 +50,10 @@ public:
         Customer::displayInfo();
         cout << "Loyalty Points: " << loyaltyPoints << "\n";
     }
+
+    int getLoyaltyPoints() const {
+        return loyaltyPoints;
+    }
 };
 
 // Abstract Class: Transport
@@ -126,7 +130,7 @@ public:
     void loadBookings() {
         ifstream file(bookingsFile);
         if (!file) {
-            cout << "No previous bookings founds.\n";
+            cout << "No previous bookings found.\n";
             return;
         }
 
@@ -163,15 +167,82 @@ public:
     }
 };
 
+// Travel Agent Module
+class TravelAgent {
+public:
+    void planMultiModalTravel() {
+        cout << "Planning multi-modal travel...\n";
+        cout << "Suggested Itinerary: Flight to City A, Train to City B, Bus to City C.\n";
+    }
+
+    void offerDiscounts(const vector<FrequentTraveler>& travelers) {
+        cout << "Offering discounts to frequent travelers...\n";
+        for (const FrequentTraveler& traveler : travelers) {
+            if (traveler.getLoyaltyPoints() > 100) {
+                cout << "Discount offered to: \n";
+                traveler.displayInfo();
+                cout << "\n";
+            }
+        }
+    }
+};
+
+
+
+
+// Customer Module
+class CustomerModule {
+private:
+    vector<Booking> customerBookings;
+
+public:
+    void bookItinerary(const Booking& booking) {
+        customerBookings.push_back(booking);
+        cout << "Itinerary booked successfully!\n";
+    }
+
+    void viewTravelHistory() const {
+        if (customerBookings.empty()) {
+            cout << "No travel history found.\n";
+        }
+        else {
+            cout << "\n=== Travel History ===\n";
+            for (size_t i = 0; i < customerBookings.size(); ++i) {
+                cout << "Itinerary " << i + 1 << ":\n";
+                customerBookings[i].displayBooking();
+                cout << "\n";
+            }
+        }
+    }
+
+    void personalizedRecommendations() const {
+        cout << "\n=== Personalized Recommendations ===\n";
+        if (!customerBookings.empty()) {
+            cout << "Based on your travel history, consider these destinations:\n";
+            cout << "- Destination A (popular choice for travelers like you)\n";
+            cout << "- Destination B (scenic and relaxing)\n";
+            cout << "- Destination C (adventurous and exciting)\n";
+        }
+        else {
+            cout << "No recommendations available. Please book an itinerary first.\n";
+        }
+    }
+};
+
+// Integrate the Customer Module into the Main Function
 int main() {
     Admin admin;
     admin.loadBookings();
 
     vector<FrequentTraveler> travelers;
+    TravelAgent travelAgent;
+    CustomerModule customerModule;
 
     while (true) {
         cout << "\n=== Travel Booking System Menu ===\n";
-        cout << "1. Sign Up\n2. View Profile\n3. Create Booking\n4. View Bookings\n5. Generate Reports\n6. Exit\n";
+        cout << "1. Sign Up\n2. View Profile\n3. Create Booking\n4. View Bookings\n";
+        cout << "5. Generate Reports\n6. Plan Multi-Modal Travel\n7. Offer Discounts\n";
+        cout << "8. View Travel History\n9. Personalized Recommendations\n10. Exit\n";
         cout << "Choose an option: ";
 
         int choice;
@@ -223,6 +294,7 @@ int main() {
 
             Booking newBooking(destination, date, transportType);
             admin.addBooking(newBooking);
+            customerModule.bookItinerary(newBooking);
 
         }
         else if (choice == 4) {
@@ -234,6 +306,22 @@ int main() {
 
         }
         else if (choice == 6) {
+            travelAgent.planMultiModalTravel();
+
+        }
+        else if (choice == 7) {
+            travelAgent.offerDiscounts(travelers);
+
+        }
+        else if (choice == 8) {
+            customerModule.viewTravelHistory();
+
+        }
+        else if (choice == 9) {
+            customerModule.personalizedRecommendations();
+
+        }
+        else if (choice == 10) {
             admin.saveBookings();
             cout << "Exiting the program. Goodbye!\n";
             break;
@@ -246,3 +334,4 @@ int main() {
 
     return 0;
 }
+
