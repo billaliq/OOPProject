@@ -1,9 +1,10 @@
 #include <iostream>
 #include <string>
 #include <vector>
+#include <fstream>
 using namespace std;
 
-// Base Class: Person (Core Feature 1: Inheritance)
+// Base Class: Person
 class Person {
 protected:
     string name;
@@ -19,7 +20,7 @@ public:
     virtual ~Person() {}
 };
 
-// Derived Class: Customer (Inheritance)
+// Derived Class: Customer
 class Customer : public Person {
 protected:
     string email;
@@ -35,7 +36,7 @@ public:
     }
 };
 
-// Derived Class: FrequentTraveler (Multilevel Inheritance)
+// Derived Class: FrequentTraveler
 class FrequentTraveler : public Customer {
 private:
     int loyaltyPoints;
@@ -51,14 +52,14 @@ public:
     }
 };
 
-// Abstract Class: Transport (Core Feature 2: Polymorphism)
+// Abstract Class: Transport
 class Transport {
 public:
     virtual void displayDetails() const = 0; // Pure virtual function
     virtual ~Transport() {}
 };
 
-// Derived Classes: Flight, Train, and Bus (Polymorphism)
+// Derived Classes: Flight, Train, Bus
 class Flight : public Transport {
 public:
     void displayDetails() const override {
@@ -80,72 +81,104 @@ public:
     }
 };
 
-// Dynamic Memory Management for Bookings
+// Booking Class
 class Booking {
 private:
-    string* destination;
-    string* date;
-    string* transportType;
+    string destination;
+    string date;
+    string transportType;
 
 public:
-    Booking(const string& dest, const string& dt, const string& transport) {
-        destination = new string(dest);
-        date = new string(dt);
-        transportType = new string(transport);
+    Booking(const string& dest, const string& dt, const string& transport)
+        : destination(dest), date(dt), transportType(transport) {
     }
 
     void displayBooking() const {
         cout << "Booking Details:\n";
-        cout << "Destination: " << *destination << "\n";
-        cout << "Date: " << *date << "\n";
-        cout << "Transport Type: " << *transportType << "\n";
+        cout << "Destination: " << destination << "\n";
+        cout << "Date: " << date << "\n";
+        cout << "Transport Type: " << transportType << "\n";
     }
 
-    ~Booking() {
-        delete destination;
-        delete date;
-        delete transportType;
-        cout << "Booking memory released.\n";
+    string serialize() const {
+        return destination + "," + date + "," + transportType + "\n";
     }
 
-    // Copy constructor to handle dynamic memory
-    Booking(const Booking& other) {
-        destination = new string(*other.destination);
-        date = new string(*other.date);
-        transportType = new string(*other.transportType);
-    }
+    static Booking deserialize(const string& line) {
+        size_t pos1 = line.find(',');
+        size_t pos2 = line.find(',', pos1 + 1);
 
-    // Assignment operator to handle dynamic memory
-    Booking& operator=(const Booking& other) {
-        if (this != &other) {
-            delete destination;
-            delete date;
-            delete transportType;
+        string dest = line.substr(0, pos1);
+        string dt = line.substr(pos1 + 1, pos2 - pos1 - 1);
+        string transport = line.substr(pos2 + 1);
 
-            destination = new string(*other.destination);
-            date = new string(*other.date);
-            transportType = new string(*other.transportType);
-        }
-        return *this;
+        return Booking(dest, dt, transport);
     }
 };
 
-// Main Function
+// Admin Module
+class Admin {
+private:
+    vector<Booking> bookings;
+    const string bookingsFile = "bookings.txt";
+
+public:
+    void loadBookings() {
+        ifstream file(bookingsFile);
+        if (!file) {
+            cout << "No previous bookings founds.\n";
+            return;
+        }
+
+        string line;
+        while (getline(file, line)) {
+            bookings.push_back(Booking::deserialize(line));
+        }
+
+        file.close();
+        cout << "Bookings loaded successfully.\n";
+    }
+
+    void saveBookings() {
+        ofstream file(bookingsFile);
+        for (const Booking& booking : bookings) {
+            file << booking.serialize();
+        }
+        file.close();
+        cout << "Bookings saved successfully.\n";
+    }
+
+    void addBooking(const Booking& booking) {
+        bookings.push_back(booking);
+        cout << "Booking added successfully.\n";
+    }
+
+    void generateReports() const {
+        cout << "\n=== Booking Reports ===\n";
+        for (size_t i = 0; i < bookings.size(); ++i) {
+            cout << "Booking " << i + 1 << ":\n";
+            bookings[i].displayBooking();
+            cout << "\n";
+        }
+    }
+};
+
 int main() {
-    vector<FrequentTraveler> travelers; // Store registered travelers
-    vector<Booking*> bookings; // Store dynamic bookings
+    Admin admin;
+    admin.loadBookings();
+
+    vector<FrequentTraveler> travelers;
 
     while (true) {
         cout << "\n=== Travel Booking System Menu ===\n";
-        cout << "1. Sign Up\n2. View Profile\n3. Create Booking\n4. View Bookings\n5. View Transport Options\n6. Exit\n";
+        cout << "1. Sign Up\n2. View Profile\n3. Create Booking\n4. View Bookings\n5. Generate Reports\n6. Exit\n";
         cout << "Choose an option: ";
 
         int choice;
         cin >> choice;
-        cin.ignore(); // To ignore the newline character after entering the choice
+        cin.ignore();
 
         if (choice == 1) {
-            // Sign-Up Feature
             string name, email;
             int id, loyaltyPoints;
 
@@ -165,7 +198,6 @@ int main() {
 
         }
         else if (choice == 2) {
-            // View Profile
             if (travelers.empty()) {
                 cout << "No profiles found. Please sign up first.\n";
             }
@@ -180,7 +212,6 @@ int main() {
 
         }
         else if (choice == 3) {
-            // Create Booking
             string destination, date, transportType;
 
             cout << "Enter your destination: ";
@@ -190,46 +221,20 @@ int main() {
             cout << "Enter transport type (Flight/Train/Bus): ";
             getline(cin, transportType);
 
-            Booking* newBooking = new Booking(destination, date, transportType);
-            bookings.push_back(newBooking);
-            cout << "Booking created successfully!\n";
+            Booking newBooking(destination, date, transportType);
+            admin.addBooking(newBooking);
 
         }
         else if (choice == 4) {
-            // View Bookings
-            if (bookings.empty()) {
-                cout << "No bookings found.\n";
-            }
-            else {
-                cout << "\n=== Existing Bookings ===\n";
-                for (size_t i = 0; i < bookings.size(); ++i) {
-                    cout << "Booking " << i + 1 << ":\n";
-                    bookings[i]->displayBooking();
-                    cout << "\n";
-                }
-            }
+            admin.generateReports();
 
         }
         else if (choice == 5) {
-            // View Transport Options
-            cout << "\n=== Available Transport Options ===\n";
-            Flight flight;
-            Train train;
-            Bus bus;
-
-            Transport* transport;
-            transport = &flight;
-            transport->displayDetails();
-
-            transport = &train;
-            transport->displayDetails();
-
-            transport = &bus;
-            transport->displayDetails();
+            admin.saveBookings();
 
         }
         else if (choice == 6) {
-            // Exit
+            admin.saveBookings();
             cout << "Exiting the program. Goodbye!\n";
             break;
 
@@ -237,11 +242,6 @@ int main() {
         else {
             cout << "Invalid choice. Please try again.\n";
         }
-    }
-
-    // Clean up dynamic bookings
-    for (Booking* booking : bookings) {
-        delete booking;
     }
 
     return 0;
