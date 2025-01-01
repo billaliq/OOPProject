@@ -2,6 +2,7 @@
 #include <string>
 #include <vector>
 #include <fstream>
+#include <map>
 using namespace std;
 
 // Base Class: Person
@@ -27,8 +28,7 @@ protected:
 
 public:
     Customer(const string& customerName, int customerId, const string& customerEmail)
-        : Person(customerName, customerId), email(customerEmail) {
-    }
+        : Person(customerName, customerId), email(customerEmail) {}
 
     void displayInfo() const override {
         Person::displayInfo();
@@ -43,8 +43,7 @@ private:
 
 public:
     FrequentTraveler(const string& travelerName, int travelerId, const string& travelerEmail, int points)
-        : Customer(travelerName, travelerId, travelerEmail), loyaltyPoints(points) {
-    }
+        : Customer(travelerName, travelerId, travelerEmail), loyaltyPoints(points) {}
 
     void displayInfo() const override {
         Customer::displayInfo();
@@ -91,32 +90,39 @@ private:
     string destination;
     string date;
     string transportType;
+    double price;
 
 public:
-    Booking(const string& dest, const string& dt, const string& transport)
-        : destination(dest), date(dt), transportType(transport) {
-    }
+    Booking(const string& dest, const string& dt, const string& transport, double bookingPrice)
+        : destination(dest), date(dt), transportType(transport), price(bookingPrice) {}
 
     void displayBooking() const {
         cout << "Booking Details:\n";
-        cout << "Destination: " << destination << "\n";
-        cout << "Date: " << date << "\n";
-        cout << "Transport Type: " << transportType << "\n";
+        cout << "Destination: " << destination << "\nDate: " << date << "\nTransport Type: " << transportType << "\nPrice: " << price << "\n";
+    }
+
+    void modifyBooking(const string& newDest, const string& newDate, const string& newTransport, double newPrice) {
+        destination = newDest;
+        date = newDate;
+        transportType = newTransport;
+        price = newPrice;
     }
 
     string serialize() const {
-        return destination + "," + date + "," + transportType + "\n";
+        return destination + "," + date + "," + transportType + "," + to_string(price) + "\n";
     }
 
     static Booking deserialize(const string& line) {
         size_t pos1 = line.find(',');
         size_t pos2 = line.find(',', pos1 + 1);
+        size_t pos3 = line.find(',', pos2 + 1);
 
         string dest = line.substr(0, pos1);
         string dt = line.substr(pos1 + 1, pos2 - pos1 - 1);
-        string transport = line.substr(pos2 + 1);
+        string transport = line.substr(pos2 + 1, pos3 - pos2 - 1);
+        double price = stod(line.substr(pos3 + 1));
 
-        return Booking(dest, dt, transport);
+        return Booking(dest, dt, transport, price);
     }
 };
 
@@ -124,6 +130,7 @@ public:
 class Admin {
 private:
     vector<Booking> bookings;
+    map<string, double> dynamicPricing;
     const string bookingsFile = "bookings.txt";
 
 public:
@@ -157,6 +164,24 @@ public:
         cout << "Booking added successfully.\n";
     }
 
+    void modifyBooking(size_t index, const Booking& newBooking) {
+        if (index < bookings.size()) {
+            bookings[index] = newBooking;
+            cout << "Booking modified successfully.\n";
+        } else {
+            cout << "Invalid booking index.\n";
+        }
+    }
+
+    void cancelBooking(size_t index) {
+        if (index < bookings.size()) {
+            bookings.erase(bookings.begin() + index);
+            cout << "Booking canceled successfully.\n";
+        } else {
+            cout << "Invalid booking index.\n";
+        }
+    }
+
     void generateReports() const {
         cout << "\n=== Booking Reports ===\n";
         for (size_t i = 0; i < bookings.size(); ++i) {
@@ -164,6 +189,17 @@ public:
             bookings[i].displayBooking();
             cout << "\n";
         }
+    }
+
+    void setDynamicPricing(const string& season, double multiplier) {
+        dynamicPricing[season] = multiplier;
+    }
+
+    double getDynamicPrice(const string& season, double basePrice) const {
+        if (dynamicPricing.count(season)) {
+            return basePrice * dynamicPricing.at(season);
+        }
+        return basePrice;
     }
 };
 
@@ -187,8 +223,29 @@ public:
     }
 };
 
+// Travel Itinerary Management
+class TravelItinerary {
+private:
+    vector<Booking> combinedBookings;
 
+public:
+    void addBooking(const Booking& booking) {
+        combinedBookings.push_back(booking);
+    }
 
+    void generateItinerary() const {
+        cout << "\n=== Detailed Travel Itinerary ===\n";
+        for (size_t i = 0; i < combinedBookings.size(); ++i) {
+            cout << "Booking " << i + 1 << ":\n";
+            combinedBookings[i].displayBooking();
+            cout << "\n";
+        }
+    }
+
+    void shareItinerary(const string& email) const {
+        cout << "Itinerary sent to: " << email << "\n";
+    }
+};
 
 // Customer Module
 class CustomerModule {
@@ -204,8 +261,7 @@ public:
     void viewTravelHistory() const {
         if (customerBookings.empty()) {
             cout << "No travel history found.\n";
-        }
-        else {
+        } else {
             cout << "\n=== Travel History ===\n";
             for (size_t i = 0; i < customerBookings.size(); ++i) {
                 cout << "Itinerary " << i + 1 << ":\n";
@@ -222,116 +278,106 @@ public:
             cout << "- Destination A (popular choice for travelers like you)\n";
             cout << "- Destination B (scenic and relaxing)\n";
             cout << "- Destination C (adventurous and exciting)\n";
-        }
-        else {
+        } else {
             cout << "No recommendations available. Please book an itinerary first.\n";
         }
     }
 };
 
-// Integrate the Customer Module into the Main Function
+// Main Function
 int main() {
     Admin admin;
     admin.loadBookings();
 
-    vector<FrequentTraveler> travelers;
-    TravelAgent travelAgent;
+    TravelItinerary itinerary;
     CustomerModule customerModule;
+    TravelAgent travelAgent;
+    vector<FrequentTraveler> travelers;
 
     while (true) {
         cout << "\n=== Travel Booking System Menu ===\n";
-        cout << "1. Sign Up\n2. View Profile\n3. Create Booking\n4. View Bookings\n";
-        cout << "5. Generate Reports\n6. Plan Multi-Modal Travel\n7. Offer Discounts\n";
-        cout << "8. View Travel History\n9. Personalized Recommendations\n10. Exit\n";
-        cout << "Choose an option: ";
+        cout << "1. Create Booking\n2. Modify Booking\n3. Cancel Booking\n4. Generate Reports\n5. Plan Multi-Modal Travel\n6. Offer Discounts\n7. Generate Itinerary\n8. View Travel History\n9. Personalized Recommendations\n10. Exit\nChoose an option: ";
 
         int choice;
         cin >> choice;
         cin.ignore();
 
         if (choice == 1) {
-            string name, email;
-            int id, loyaltyPoints;
-
-            cout << "Enter your name: ";
-            getline(cin, name);
-            cout << "Enter your ID: ";
-            cin >> id;
-            cin.ignore();
-            cout << "Enter your email: ";
-            getline(cin, email);
-            cout << "Enter your loyalty points: ";
-            cin >> loyaltyPoints;
-            cin.ignore();
-
-            travelers.emplace_back(name, id, email, loyaltyPoints);
-            cout << "Sign-up successful!\n";
-
-        }
-        else if (choice == 2) {
-            if (travelers.empty()) {
-                cout << "No profiles found. Please sign up first.\n";
-            }
-            else {
-                cout << "\n=== Registered Travelers ===\n";
-                for (size_t i = 0; i < travelers.size(); ++i) {
-                    cout << "Traveler " << i + 1 << ":\n";
-                    travelers[i].displayInfo();
-                    cout << "\n";
-                }
-            }
-
-        }
-        else if (choice == 3) {
             string destination, date, transportType;
+            double price;
 
-            cout << "Enter your destination: ";
+            cout << "Enter destination: ";
             getline(cin, destination);
             cout << "Enter travel date (YYYY-MM-DD): ";
             getline(cin, date);
             cout << "Enter transport type (Flight/Train/Bus): ";
             getline(cin, transportType);
+            cout << "Enter price: ";
+            cin >> price;
+            cin.ignore();
 
-            Booking newBooking(destination, date, transportType);
+            Booking newBooking(destination, date, transportType, price);
             admin.addBooking(newBooking);
             customerModule.bookItinerary(newBooking);
+            itinerary.addBooking(newBooking);
 
-        }
-        else if (choice == 4) {
+        } else if (choice == 2) {
+            size_t index;
+            cout << "Enter booking index to modify: ";
+            cin >> index;
+            cin.ignore();
+
+            string destination, date, transportType;
+            double price;
+
+            cout << "Enter new destination: ";
+            getline(cin, destination);
+            cout << "Enter new travel date (YYYY-MM-DD): ";
+            getline(cin, date);
+            cout << "Enter new transport type (Flight/Train/Bus): ";
+            getline(cin, transportType);
+            cout << "Enter new price: ";
+            cin >> price;
+            cin.ignore();
+
+            Booking modifiedBooking(destination, date, transportType, price);
+            admin.modifyBooking(index - 1, modifiedBooking);
+
+        } else if (choice == 3) {
+            size_t index;
+            cout << "Enter booking index to cancel: ";
+            cin >> index;
+            cin.ignore();
+
+            admin.cancelBooking(index - 1);
+
+        } else if (choice == 4) {
             admin.generateReports();
 
-        }
-        else if (choice == 5) {
-            admin.saveBookings();
-
-        }
-        else if (choice == 6) {
+        } else if (choice == 5) {
             travelAgent.planMultiModalTravel();
 
-        }
-        else if (choice == 7) {
+        } else if (choice == 6) {
             travelAgent.offerDiscounts(travelers);
 
-        }
-        else if (choice == 8) {
+        } else if (choice == 7) {
+            itinerary.generateItinerary();
+
+        } else if (choice == 8) {
             customerModule.viewTravelHistory();
 
-        }
-        else if (choice == 9) {
+        } else if (choice == 9) {
             customerModule.personalizedRecommendations();
 
-        }
-        else if (choice == 10) {
+        } else if (choice == 10) {
             admin.saveBookings();
             cout << "Exiting the program. Goodbye!\n";
             break;
 
-        }
-        else {
+        } else {
             cout << "Invalid choice. Please try again.\n";
         }
     }
 
     return 0;
 }
-
